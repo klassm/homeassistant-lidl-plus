@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "description": "If you need help with the configuration have a look here: https://github.com/ludeeus/integration_blueprint",
+                "description": "You can obtain a token via https://github.com/Andre0512/lidl-plushttps://github.com/Andre0512/lidl-plus.",
                 "data": {
                     "name": "Name",
                     "token": "Refresh Token",
