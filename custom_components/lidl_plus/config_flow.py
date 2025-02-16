@@ -20,8 +20,8 @@ class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(
-            self,
-            user_input: dict | None = None,
+        self,
+        user_input: dict | None = None,
     ) -> config_entries.ConfigFlowResult:
         _errors = {}
         if user_input is not None:
@@ -67,15 +67,16 @@ class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                             type=selector.TextSelectorType.PASSWORD,
                         ),
                     ),
-                    vol.Required(CONF_COUNTRY,
-                                 default=(user_input or {}).get(CONF_COUNTRY, "DE")
+                    vol.Required(
+                        CONF_COUNTRY, default=(user_input or {}).get(CONF_COUNTRY, "DE")
                     ): selector.TextSelector(
                         selector.TextSelectorConfig(
                             type=selector.TextSelectorType.TEXT,
                         ),
                     ),
-                    vol.Required(CONF_LANGUAGE,
-                                 default=(user_input or {}).get(CONF_LANGUAGE, "de")
+                    vol.Required(
+                        CONF_LANGUAGE,
+                        default=(user_input or {}).get(CONF_LANGUAGE, "de"),
                     ): selector.TextSelector(
                         selector.TextSelectorConfig(
                             type=selector.TextSelectorType.TEXT,

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 type LidlPlusConfigEntry = ConfigEntry[LidlPlusData]
 
+
 @dataclass
 class LidlPlusData:
     client: LidlPlusApiClient

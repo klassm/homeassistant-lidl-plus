@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import base64
@@ -32,7 +31,6 @@ class LidlPlusApiClient:
         self._language = language
         self._session = session
 
-
     async def coupons(self, token):
         """Get list of all coupons"""
         url = f"{self._COUPONS_API}/v2/{self._country}"
@@ -43,7 +41,10 @@ class LidlPlusApiClient:
     async def coupon_promotions_v1(self, token):
         """Get list of all coupons API V1"""
         url = f"{self._COUPONS_V1_API}/v1/promotionslist"
-        kwargs = {"headers": {**self._default_headers(token), "Country": self._country}, "timeout": self._TIMEOUT}
+        kwargs = {
+            "headers": {**self._default_headers(token), "Country": self._country},
+            "timeout": self._TIMEOUT,
+        }
         async with self._session.get(url, **kwargs) as resp:
             return await resp.json()
 
@@ -63,7 +64,10 @@ class LidlPlusApiClient:
     async def activate_coupon_promotion_v1(self, token, promotion_id):
         """Activate single coupon by id API V1"""
         url = f"{self._COUPONS_V1_API}/v1/promotions/{promotion_id}/activation"
-        kwargs = {"headers": {**self._default_headers(token), "Country": self._country}, "timeout": self._TIMEOUT}
+        kwargs = {
+            "headers": {**self._default_headers(token), "Country": self._country},
+            "timeout": self._TIMEOUT,
+        }
         async with self._session.post(url, **kwargs) as resp:
             if resp.status != 409 and resp.status > 400:
                 resp.raise_for_status()
@@ -76,7 +80,9 @@ class LidlPlusApiClient:
             "Content-Type": "application/x-www-form-urlencoded",
         }
         kwargs = {"headers": headers, "data": payload, "timeout": self._TIMEOUT}
-        async with self._session.post(f"{self._AUTH_API}/connect/token", **kwargs) as resp:
+        async with self._session.post(
+            f"{self._AUTH_API}/connect/token", **kwargs
+        ) as resp:
             response = await resp.json()
             if "error" in response:
                 raise LoginError(response["error"])

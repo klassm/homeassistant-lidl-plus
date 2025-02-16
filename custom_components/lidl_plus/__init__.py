@@ -61,11 +61,13 @@ async def async_reload_entry(
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)
 
+
 def setup(hass, config):
     async def update_coupons(call: ServiceCall):
         """Handle the service action call."""
         entries = hass.config_entries.async_loaded_entries(DOMAIN)
         for entry in entries:
             await activate_coupons(entry.runtime_data)
+
     hass.services.register(DOMAIN, "update_coupons", update_coupons)
     return True

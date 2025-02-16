@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from .data import LidlPlusData
 from logging import WARNING, Logger, getLogger, INFO, DEBUG, ERROR
 
+
 async def activate_coupons(entry: LidlPlusData):
     """Activate all available coupons"""
     logger = getLogger(__package__)
@@ -17,9 +18,13 @@ async def activate_coupons(entry: LidlPlusData):
         for coupon in section.get("coupons", {}):
             if coupon["isActivated"]:
                 continue
-            if datetime.fromisoformat(coupon["startValidityDate"]) > datetime.now(timezone.utc):
+            if datetime.fromisoformat(coupon["startValidityDate"]) > datetime.now(
+                timezone.utc
+            ):
                 continue
-            if datetime.fromisoformat(coupon["endValidityDate"]) < datetime.now(timezone.utc):
+            if datetime.fromisoformat(coupon["endValidityDate"]) < datetime.now(
+                timezone.utc
+            ):
                 continue
             logger.debug("activating coupon: ", coupon["title"])
             await client.activate_coupon(access_token, coupon["id"])
