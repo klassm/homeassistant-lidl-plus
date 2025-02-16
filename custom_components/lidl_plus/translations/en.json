@@ -4,15 +4,15 @@
             "user": {
                 "description": "If you need help with the configuration have a look here: https://github.com/ludeeus/integration_blueprint",
                 "data": {
-                    "username": "Username",
-                    "password": "Password"
+                    "name": "Name",
+                    "token": "Refresh Token",
+                    "country": "Country (e.g. DE)",
+                    "language": "Language (e.g. de)"
                 }
             }
         },
         "error": {
-            "auth": "Username/Password is wrong.",
-            "connection": "Unable to connect to the server.",
-            "unknown": "Unknown error occurred."
+            "auth": "Cannot get data. Refresh token seems to be wrong?"
         },
         "abort": {
             "already_configured": "This entry is already configured."

@@ -1,0 +1,12 @@
+{
+  "domain": "lidl_plus",
+  "name": "Lidl Plus",
+  "codeowners": [
+    "@klassm"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/klassm/homeassistant-lidl-plus",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/klassm/homeassistant-lidl-plus/issues",
+  "version": "0.1.0"
+}
