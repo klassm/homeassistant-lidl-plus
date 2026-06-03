@@ -1,19 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-if TYPE_CHECKING:
-    from homeassistant.loader import Integration
-
-    from .api import LidlPlusApiClient
-
-type LidlPlusConfigEntry = ConfigEntry[LidlPlusData]
+from .api import LidlPlusApiClient
 
 
 @dataclass
 class LidlPlusData:
     client: LidlPlusApiClient
-    integration: Integration
+    coordinator: DataUpdateCoordinator

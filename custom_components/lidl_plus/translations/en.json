@@ -1,21 +1,19 @@
 {
-    "config": {
-        "step": {
-            "user": {
-                "description": "You can obtain a token via https://github.com/Andre0512/lidl-plus.",
-                "data": {
-                    "name": "Name",
-                    "token": "Refresh Token",
-                    "country": "Country (e.g. DE)",
-                    "language": "Language (e.g. de)"
-                }
-            }
-        },
-        "error": {
-            "auth": "Cannot get data. Refresh token seems to be wrong?"
-        },
-        "abort": {
-            "already_configured": "This entry is already configured."
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lidl Plus",
+        "description": "Set up your Lidl Plus account. You need a refresh token — see https://github.com/klassm/homeassistant-lidl-plus for instructions on how to obtain one.",
+        "data": {
+          "name": "Name",
+          "token": "Refresh token",
+          "country": "Country code (e.g. DE, NL, BE)",
+          "language": "Language code (e.g. de, nl, fr)"
         }
+      }
+    },
+    "error": {
+      "auth": "Authentication failed. Check your refresh token."
     }
+  }
 }

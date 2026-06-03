@@ -1,7 +1,6 @@
-"""Constants for integration_blueprint."""
+"""Constants for Lidl Plus integration."""
 
-from logging import Logger, getLogger
-
-LOGGER: Logger = getLogger(__package__)
+from logging import getLogger
 
 DOMAIN = "lidl_plus"
+LOGGER = getLogger(__package__)

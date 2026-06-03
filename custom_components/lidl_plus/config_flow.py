@@ -1,19 +1,15 @@
-"""Adds config flow for Blueprint."""
-
 from __future__ import annotations
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_TOKEN, CONF_COUNTRY, CONF_LANGUAGE, CONF_NAME
+from homeassistant.const import CONF_COUNTRY, CONF_LANGUAGE, CONF_NAME, CONF_TOKEN
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from slugify import slugify
-from .exceptions import LoginError
 
-from .api import (
-    LidlPlusApiClient,
-)
+from .api import LidlPlusApiClient
 from .const import DOMAIN, LOGGER
+from .exceptions import LoginError
 
 
 class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -36,9 +32,6 @@ class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 _errors["base"] = "auth"
             else:
                 await self.async_set_unique_id(
-                    ## Do NOT use this in production code
-                    ## The unique_id should never be something that can change
-                    ## https://developers.home-assistant.io/docs/config_entries_config_flow_handler#unique-ids
                     unique_id=slugify(user_input[CONF_NAME])
                 )
                 self._abort_if_unique_id_configured()
