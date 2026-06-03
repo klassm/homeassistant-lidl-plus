@@ -61,7 +61,8 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
         except Exception:
             LOGGER.warning("Failed to fetch V1 coupons")
 
-        active = [c for c in coupons if c.get("isActivated")]
+        in_store = [c for c in coupons if not c.get("isOnlineShop")]
+        active = [c for c in in_store if c.get("isActivated")]
         now = datetime.now(UTC)
 
         valid = []
@@ -77,6 +78,7 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
 
         return {
             "total": len(coupons),
+            "in_store": len(in_store),
             "active": len(active),
             "valid": len(valid),
             "activated_this_cycle": activated,
