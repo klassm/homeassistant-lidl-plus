@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_TOKEN
@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .activate_coupons import activate_coupons
 from .api import LidlPlusApiClient
 from .const import LOGGER
+from .coupon_helpers import is_expired, should_show
 
 SCAN_INTERVAL = timedelta(hours=6)
 
@@ -61,30 +62,13 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
         except Exception:
             LOGGER.warning("Failed to fetch V1 coupons")
 
-        _SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
-        in_store = [
-            c
-            for c in coupons
-            if not c.get("isOnlineShop")
-            and c.get("title") not in _SKIP_TITLES
-        ]
-        active = [c for c in in_store if c.get("isActivated")]
-        now = datetime.now(UTC)
-
-        valid = []
-        for c in active:
-            end = c.get("endValidityDate") or c.get("validity", {}).get("end")
-            if end:
-                try:
-                    if datetime.fromisoformat(end) < now:
-                        continue
-                except (ValueError, TypeError):
-                    pass
-            valid.append(c)
+        displayable = [c for c in coupons if should_show(c)]
+        active = [c for c in displayable if c.get("isActivated")]
+        valid = [c for c in active if not is_expired(c)]
 
         return {
             "total": len(coupons),
-            "in_store": len(in_store),
+            "in_store": len(displayable),
             "active": len(active),
             "valid": len(valid),
             "activated_this_cycle": activated,

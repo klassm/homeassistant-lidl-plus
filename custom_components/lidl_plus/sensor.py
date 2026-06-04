@@ -8,6 +8,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import LidlPlusCoordinator
+from .coupon_helpers import coupon_label
 from .data import LidlPlusData
 
 
@@ -64,10 +65,7 @@ class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity)
             "active_coupons": data.get("active", 0),
             "valid_coupons": data.get("valid", 0),
             "activated_last_cycle": data.get("activated_this_cycle", 0),
-            "coupon_names": [
-                f"{c.get('discount', {}).get('title', '')} {c.get('title', '')}".strip()
-                for c in coupons
-            ],
+            "coupon_names": [coupon_label(c) for c in coupons],
             "coupons": [_coupon_detail(c) for c in coupons],
         }
 

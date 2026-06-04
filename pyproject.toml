@@ -5,6 +5,7 @@ description = "Lidl Plus integration for Home Assistant"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "aiohttp",
+    "aiodns<3.3",
     "colorlog==6.9.0",
     "homeassistant==2025.2.4",
     "ruff==0.9.6",
