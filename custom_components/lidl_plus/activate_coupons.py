@@ -3,8 +3,6 @@ from datetime import UTC, datetime
 from .api import LidlPlusApiClient
 from .const import LOGGER
 
-_SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
-
 
 async def activate_coupons(client: LidlPlusApiClient) -> int:
     LOGGER.info("Activating all available coupons")
@@ -17,10 +15,6 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
         for section in coupons.get("sections", []):
             for coupon in section.get("coupons", []):
                 if coupon["isActivated"]:
-                    continue
-                if coupon.get("isOnlineShop"):
-                    continue
-                if coupon.get("title") in _SKIP_TITLES:
                     continue
                 end = coupon.get("endValidityDate")
                 if end and datetime.fromisoformat(end) < datetime.now(UTC):
@@ -39,10 +33,6 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
         for section in coupons_v1.get("sections", []):
             for coupon in section.get("promotions", []):
                 if coupon["isActivated"]:
-                    continue
-                if coupon.get("isOnlineShop"):
-                    continue
-                if coupon.get("title") in _SKIP_TITLES:
                     continue
                 validity = coupon.get("validity", {})
                 if datetime.fromisoformat(validity["end"]) < datetime.now(UTC):
