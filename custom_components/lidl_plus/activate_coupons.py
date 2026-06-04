@@ -1,9 +1,14 @@
+"""Activate available Lidl Plus coupons."""
+
+import aiohttp
+
 from .api import LidlPlusApiClient
 from .const import LOGGER
 from .coupon_helpers import coupon_label, is_expired, is_special_promotion
 
 
 async def activate_coupons(client: LidlPlusApiClient) -> int:
+    """Activate all available coupons and return the count of newly activated ones."""
     LOGGER.info("Activating all available coupons")
     await client.get_access_token()
 
@@ -22,7 +27,7 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
                 LOGGER.info("Activating coupon: %s", coupon_label(coupon))
                 await client.activate_coupon(coupon["id"])
                 activated += 1
-    except Exception as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         LOGGER.warning("Failed to fetch/activate V2 coupons: %s", err)
 
     try:
@@ -38,7 +43,7 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
                 LOGGER.info("Activating coupon v1: %s", coupon_label(coupon))
                 await client.activate_coupon_promotion_v1(coupon["id"])
                 activated += 1
-    except Exception as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         LOGGER.warning("Failed to fetch/activate V1 coupons: %s", err)
 
     LOGGER.info("Activated %d coupons", activated)

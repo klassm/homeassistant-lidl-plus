@@ -1,15 +1,22 @@
+"""Sensor platform for the Lidl Plus integration."""
+
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import LidlPlusCoordinator
 from .coupon_helpers import coupon_label
-from .data import LidlPlusData
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .data import LidlPlusData
 
 
 async def async_setup_entry(
@@ -17,11 +24,13 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
+    """Set up the Lidl Plus sensor from a config entry."""
     data: LidlPlusData = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([LidlPlusCouponSensor(data.coordinator, entry)])
 
 
 def _coupon_detail(c: dict) -> dict:
+    """Return a simplified dict of coupon details."""
     discount = c.get("discount", {})
     availability = c.get("availability", {})
     return {
@@ -35,6 +44,8 @@ def _coupon_detail(c: dict) -> dict:
 
 
 class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity):
+    """Sensor that tracks Lidl Plus coupon counts."""
+
     _attr_icon = "mdi:ticket-percent"
     _attr_has_entity_name = True
 
@@ -43,6 +54,7 @@ class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity)
         coordinator: LidlPlusCoordinator,
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_coupons"
         self._attr_device_info = {
@@ -53,10 +65,12 @@ class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity)
 
     @property
     def native_value(self) -> int:
+        """Return the number of valid coupons."""
         return self.coordinator.data.get("valid", 0)
 
     @property
     def extra_state_attributes(self) -> dict:
+        """Return extra state attributes with coupon details."""
         data = self.coordinator.data
         coupons = data.get("coupons", [])
         return {
@@ -71,6 +85,7 @@ class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity)
 
     @property
     def entity_picture(self) -> str | None:
+        """Return the image of the first coupon."""
         coupons = self.coordinator.data.get("coupons", [])
         if coupons:
             return coupons[0].get("image")

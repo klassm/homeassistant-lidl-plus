@@ -1,27 +1,37 @@
+"""Data update coordinator for the Lidl Plus integration."""
+
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
+import aiohttp
 from homeassistant.const import CONF_TOKEN
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .activate_coupons import activate_coupons
-from .api import LidlPlusApiClient
 from .const import LOGGER
 from .coupon_helpers import is_expired, should_show
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+
+    from .api import LidlPlusApiClient
 
 SCAN_INTERVAL = timedelta(hours=6)
 
 
 class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
+    """Coordinator for Lidl Plus coupon data."""
+
     def __init__(
         self,
         hass: HomeAssistant,
         client: LidlPlusApiClient,
         entry: ConfigEntry,
     ) -> None:
+        """Initialize the coordinator."""
         super().__init__(
             hass,
             LOGGER,
@@ -32,10 +42,12 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
         self._entry = entry
 
     async def _async_update_data(self) -> dict:
+        """Fetch data from the Lidl Plus API."""
         try:
             await self._client.get_access_token()
         except Exception as err:
-            raise UpdateFailed(f"Auth failed: {err}") from err
+            msg = f"Auth failed: {err}"
+            raise UpdateFailed(msg) from err
 
         if self._client.refresh_token != self._entry.data.get(CONF_TOKEN):
             self.hass.config_entries.async_update_entry(
@@ -49,17 +61,15 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
         try:
             data = await self._client.coupons()
             for section in data.get("sections", []):
-                for coupon in section.get("coupons", []):
-                    coupons.append(coupon)
-        except Exception:
+                coupons.extend(section.get("coupons", []))
+        except (aiohttp.ClientError, TimeoutError):
             LOGGER.warning("Failed to fetch V2 coupons")
 
         try:
             data_v1 = await self._client.coupon_promotions_v1()
             for section in data_v1.get("sections", []):
-                for coupon in section.get("promotions", []):
-                    coupons.append(coupon)
-        except Exception:
+                coupons.extend(section.get("promotions", []))
+        except (aiohttp.ClientError, TimeoutError):
             LOGGER.warning("Failed to fetch V1 coupons")
 
         displayable = [c for c in coupons if should_show(c)]

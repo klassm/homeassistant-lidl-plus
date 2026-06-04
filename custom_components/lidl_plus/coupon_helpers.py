@@ -8,6 +8,7 @@ _SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
 
 
 def is_expired(coupon: dict) -> bool:
+    """Check if a coupon has expired or is not yet valid."""
     now = datetime.now(UTC)
     end = coupon.get("endValidityDate")
     if end and datetime.fromisoformat(end) < now:
@@ -20,20 +21,21 @@ def is_expired(coupon: dict) -> bool:
     if end and datetime.fromisoformat(end) < now:
         return True
     start = validity.get("start")
-    if start and datetime.fromisoformat(start) > now:
-        return True
-    return False
+    return bool(start and datetime.fromisoformat(start) > now)
 
 
 def is_special_promotion(coupon: dict) -> bool:
+    """Check if a coupon is a special (in-store only) promotion."""
     return bool(coupon.get("specialPromotion")) or coupon.get("isSpecial", False)
 
 
 def should_show(coupon: dict) -> bool:
+    """Check if a coupon should be shown (not online-shop, not skipped title)."""
     return not coupon.get("isOnlineShop") and coupon.get("title") not in _SKIP_TITLES
 
 
 def coupon_label(coupon: dict) -> str:
+    """Build a human-readable label for a coupon."""
     discount = coupon.get("discount", {}).get("title", "")
     desc = coupon.get("discount", {}).get("description", "")
     title = coupon["title"]

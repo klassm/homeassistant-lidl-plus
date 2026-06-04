@@ -1,3 +1,5 @@
+"""Config flow for the Lidl Plus integration."""
+
 from __future__ import annotations
 
 import voluptuous as vol
@@ -13,12 +15,15 @@ from .exceptions import LoginError
 
 
 class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a Lidl Plus config flow."""
+
     VERSION = 1
 
     async def async_step_user(
         self,
         user_input: dict | None = None,
     ) -> config_entries.ConfigFlowResult:
+        """Handle the user step of the config flow."""
         _errors = {}
         if user_input is not None:
             try:
@@ -79,6 +84,7 @@ class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _test_credentials(self, token: str, country: str, language: str) -> None:
+        """Test if the provided credentials are valid."""
         client = LidlPlusApiClient(
             refresh_token=token,
             country=country,
