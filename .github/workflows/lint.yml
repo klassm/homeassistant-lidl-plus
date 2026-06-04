@@ -1,4 +1,4 @@
-name: "Lint"
+name: "CI"
 
 on:
   push:
@@ -27,3 +27,19 @@ jobs:
 
         - name: "Format"
           run: uv run ruff format . --check
+
+  tests:
+    name: "Tests"
+    runs-on: "ubuntu-latest"
+    steps:
+        - name: "Checkout the repository"
+          uses: "actions/checkout@v4.2.2"
+
+        - name: "Install uv"
+          uses: astral-sh/setup-uv@v6
+
+        - name: "Install requirements"
+          run: uv sync --dev
+
+        - name: "Run tests"
+          run: uv run pytest tests/ -v
