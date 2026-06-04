@@ -31,9 +31,7 @@ class LidlPlusConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 LOGGER.warning(exception)
                 _errors["base"] = "auth"
             else:
-                await self.async_set_unique_id(
-                    unique_id=slugify(user_input[CONF_NAME])
-                )
+                await self.async_set_unique_id(unique_id=slugify(user_input[CONF_NAME]))
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=user_input[CONF_NAME],

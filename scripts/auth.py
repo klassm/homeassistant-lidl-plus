@@ -162,9 +162,7 @@ def _extract_code(url: str) -> str:
 def cmd_login(args: argparse.Namespace) -> None:
     from playwright.sync_api import sync_playwright
 
-    auth_url, code_verifier, redirect_uri = _build_auth_url(
-        args.country, args.language
-    )
+    auth_url, code_verifier, redirect_uri = _build_auth_url(args.country, args.language)
 
     print("Opening browser for Lidl Plus login...")
     print("Log in with your credentials and complete 2FA if prompted.\n")
@@ -244,7 +242,11 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
         coupons = client.coupons()
         for section in coupons.get("sections", []):
             for coupon in section.get("coupons", []):
-                if coupon["isActivated"] or is_expired(coupon) or is_special_promotion(coupon):
+                if (
+                    coupon["isActivated"]
+                    or is_expired(coupon)
+                    or is_special_promotion(coupon)
+                ):
                     continue
                 try:
                     client.activate_coupon(coupon["id"])
@@ -259,7 +261,11 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
         coupons_v1 = client.coupon_promotions_v1()
         for section in coupons_v1.get("sections", []):
             for coupon in section.get("promotions", []):
-                if coupon["isActivated"] or is_expired(coupon) or is_special_promotion(coupon):
+                if (
+                    coupon["isActivated"]
+                    or is_expired(coupon)
+                    or is_special_promotion(coupon)
+                ):
                     continue
                 try:
                     client.activate_coupon_promotion_v1(coupon["id"])
