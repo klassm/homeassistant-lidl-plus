@@ -22,12 +22,14 @@ async def async_setup_entry(
 
 def _coupon_detail(c: dict) -> dict:
     discount = c.get("discount", {})
+    availability = c.get("availability", {})
     return {
         "title": c.get("title", ""),
         "discount": discount.get("title", ""),
         "discount_description": discount.get("description", ""),
         "image": c.get("image", ""),
         "end": c.get("endValidityDate") or c.get("validity", {}).get("end"),
+        "available": not availability.get("apologizeStatus", False),
     }
 
 
@@ -62,7 +64,10 @@ class LidlPlusCouponSensor(CoordinatorEntity[LidlPlusCoordinator], SensorEntity)
             "active_coupons": data.get("active", 0),
             "valid_coupons": data.get("valid", 0),
             "activated_last_cycle": data.get("activated_this_cycle", 0),
-            "coupon_names": [c.get("title", "") for c in coupons],
+            "coupon_names": [
+                f"{c.get('discount', {}).get('title', '')} {c.get('title', '')}".strip()
+                for c in coupons
+            ],
             "coupons": [_coupon_detail(c) for c in coupons],
         }
 

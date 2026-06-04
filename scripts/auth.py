@@ -301,11 +301,22 @@ def cmd_coupon_activate(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+_SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
+
+
 def _print_coupons(data: dict, key: str) -> None:
     for section in data.get("sections", []):
         for coupon in section.get(key, []):
+            if coupon.get("isOnlineShop"):
+                continue
+            if coupon.get("title") in _SKIP_TITLES:
+                continue
             status = "active" if coupon.get("isActivated") else "inactive"
-            print(f"  [{status}] {coupon['title']} (id: {coupon['id']})")
+            discount = coupon.get("discount", {}).get("title", "")
+            desc = coupon.get("discount", {}).get("description", "")
+            label = f"{discount} {coupon['title']}".strip() if discount else coupon["title"]
+            detail = f" ({desc})" if desc else ""
+            print(f"  [{status}] {label}{detail} (id: {coupon['id']})")
 
 
 def _is_expired(coupon: dict) -> bool:

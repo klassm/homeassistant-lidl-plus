@@ -61,7 +61,13 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
         except Exception:
             LOGGER.warning("Failed to fetch V1 coupons")
 
-        in_store = [c for c in coupons if not c.get("isOnlineShop")]
+        _SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
+        in_store = [
+            c
+            for c in coupons
+            if not c.get("isOnlineShop")
+            and c.get("title") not in _SKIP_TITLES
+        ]
         active = [c for c in in_store if c.get("isActivated")]
         now = datetime.now(UTC)
 
