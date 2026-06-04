@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
@@ -12,21 +13,32 @@ if TYPE_CHECKING:
     from custom_components.lidl_plus.api import LidlPlusApiClient
 
 
+@dataclass
+class CouponSpec:
+    """Specification for building a test coupon dict."""
+
+    title: str = "Test Coupon"
+    is_activated: bool = True
+    is_expired: bool = False
+    is_special: bool = False
+    is_online_shop: bool = False
+    image: str = ""
+    coupon_id: str = "coupon-1"
+    discount: dict = field(default_factory=lambda: {"title": "", "description": ""})
+
+
 @pytest.fixture
 def mock_client() -> LidlPlusApiClient:
-    """Return a mocked LidlPlusApiClient."""
+    """Return a LidlPlusApiClient with a mocked session."""
     from custom_components.lidl_plus.api import LidlPlusApiClient
 
     session = AsyncMock()
-    client = LidlPlusApiClient(
+    return LidlPlusApiClient(
         refresh_token="test-refresh-token",
         country="DE",
         language="de",
         session=session,
     )
-    client._token = "test-access-token"
-    client._expires = datetime.now(UTC) + timedelta(hours=1)
-    return client
 
 
 @pytest.fixture
@@ -48,36 +60,26 @@ def mock_entry() -> MagicMock:
     return entry
 
 
-def make_coupon(
-    *,
-    title: str = "Test Coupon",
-    is_activated: bool = True,
-    is_expired: bool = False,
-    is_special: bool = False,
-    is_online_shop: bool = False,
-    discount_title: str = "",
-    discount_description: str = "",
-    image: str = "",
-    coupon_id: str = "coupon-1",
-) -> dict:
-    """Create a test coupon dict with sensible defaults."""
+def make_coupon(spec: CouponSpec | None = None, **overrides: object) -> dict:
+    """Create a test coupon dict from a CouponSpec."""
+    if spec is None:
+        spec = CouponSpec()
+    for key, value in overrides.items():
+        setattr(spec, key, value)
     now = datetime.now(UTC)
     end = (
         (now + timedelta(days=30)).isoformat()
-        if not is_expired
+        if not spec.is_expired
         else (now - timedelta(days=1)).isoformat()
     )
     return {
-        "id": coupon_id,
-        "title": title,
-        "isActivated": is_activated,
-        "specialPromotion": is_special,
-        "isSpecial": is_special,
-        "isOnlineShop": is_online_shop,
+        "id": spec.coupon_id,
+        "title": spec.title,
+        "isActivated": spec.is_activated,
+        "specialPromotion": spec.is_special,
+        "isSpecial": spec.is_special,
+        "isOnlineShop": spec.is_online_shop,
         "endValidityDate": end,
-        "image": image,
-        "discount": {
-            "title": discount_title,
-            "description": discount_description,
-        },
+        "image": spec.image,
+        "discount": spec.discount,
     }

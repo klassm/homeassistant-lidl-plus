@@ -22,6 +22,36 @@ if TYPE_CHECKING:
 SCAN_INTERVAL = timedelta(hours=6)
 
 
+async def fetch_and_process_coupons(client: LidlPlusApiClient) -> dict:
+    """Fetch coupons from the API and return processed summary data."""
+    coupons: list[dict] = []
+    try:
+        data = await client.coupons()
+        for section in data.get("sections", []):
+            coupons.extend(section.get("coupons", []))
+    except (aiohttp.ClientError, TimeoutError):
+        LOGGER.warning("Failed to fetch V2 coupons")
+
+    try:
+        data_v1 = await client.coupon_promotions_v1()
+        for section in data_v1.get("sections", []):
+            coupons.extend(section.get("promotions", []))
+    except (aiohttp.ClientError, TimeoutError):
+        LOGGER.warning("Failed to fetch V1 coupons")
+
+    displayable = [c for c in coupons if should_show(c)]
+    active = [c for c in displayable if c.get("isActivated")]
+    valid = [c for c in active if not is_expired(c)]
+
+    return {
+        "total": len(coupons),
+        "in_store": len(displayable),
+        "active": len(active),
+        "valid": len(valid),
+        "coupons": valid,
+    }
+
+
 class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
     """Coordinator for Lidl Plus coupon data."""
 
@@ -56,31 +86,6 @@ class LidlPlusCoordinator(DataUpdateCoordinator[dict]):
             )
 
         activated = await activate_coupons(self._client)
-
-        coupons: list[dict] = []
-        try:
-            data = await self._client.coupons()
-            for section in data.get("sections", []):
-                coupons.extend(section.get("coupons", []))
-        except (aiohttp.ClientError, TimeoutError):
-            LOGGER.warning("Failed to fetch V2 coupons")
-
-        try:
-            data_v1 = await self._client.coupon_promotions_v1()
-            for section in data_v1.get("sections", []):
-                coupons.extend(section.get("promotions", []))
-        except (aiohttp.ClientError, TimeoutError):
-            LOGGER.warning("Failed to fetch V1 coupons")
-
-        displayable = [c for c in coupons if should_show(c)]
-        active = [c for c in displayable if c.get("isActivated")]
-        valid = [c for c in active if not is_expired(c)]
-
-        return {
-            "total": len(coupons),
-            "in_store": len(displayable),
-            "active": len(active),
-            "valid": len(valid),
-            "activated_this_cycle": activated,
-            "coupons": valid,
-        }
+        result = await fetch_and_process_coupons(self._client)
+        result["activated_this_cycle"] = activated
+        return result

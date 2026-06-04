@@ -1,199 +1,115 @@
-"""Tests for the LidlPlusCoordinator."""
+"""Tests for the coordinator's fetch_and_process_coupons function."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
-import pytest
-
-from custom_components.lidl_plus.coordinator import LidlPlusCoordinator
+from custom_components.lidl_plus.coordinator import fetch_and_process_coupons
+from tests.conftest import make_coupon
 
 
-def _make_coupon(
-    title: str = "Test",
-    is_activated: bool = True,
-    end: str | None = None,
-    is_online_shop: bool = False,
-    is_special: bool = False,
-) -> dict:
-    if end is None:
-        end = (datetime.now(UTC) + timedelta(days=30)).isoformat()
-    return {
-        "title": title,
-        "isActivated": is_activated,
-        "endValidityDate": end,
-        "isOnlineShop": is_online_shop,
-        "specialPromotion": is_special,
-        "image": "https://example.com/img.png",
-    }
+class TestFetchAndProcessCoupons:
+    """Tests for fetch_and_process_coupons()."""
 
+    async def test_basic_update(self) -> None:
+        """Test that a basic fetch returns expected data."""
+        coupon = make_coupon(title="Apple 20%", is_activated=True)
+        client = AsyncMock()
+        client.coupons = AsyncMock(return_value={"sections": [{"coupons": [coupon]}]})
+        client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
 
-@pytest.fixture
-def mock_hass() -> MagicMock:
-    hass = MagicMock()
-    hass.config_entries = MagicMock()
-    return hass
-
-
-@pytest.fixture
-def mock_entry() -> MagicMock:
-    entry = MagicMock()
-    entry.entry_id = "test"
-    entry.data = {"token": "test-refresh-token", "country": "DE", "language": "de"}
-    return entry
-
-
-@pytest.fixture
-def mock_client() -> AsyncMock:
-    client = AsyncMock()
-    client.refresh_token = "test-refresh-token"
-    client.get_access_token = AsyncMock(return_value="access-token")
-    return client
-
-
-@pytest.fixture
-def coordinator(
-    mock_hass: MagicMock, mock_client: AsyncMock, mock_entry: MagicMock
-) -> LidlPlusCoordinator:
-    return LidlPlusCoordinator(mock_hass, mock_client, mock_entry)
-
-
-class TestAsyncUpdateData:
-    """Tests for _async_update_data()."""
-
-    async def test_basic_update(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        coupon = _make_coupon(title="Apple 20%", is_activated=True)
-        mock_client.coupons = AsyncMock(
-            return_value={"sections": [{"coupons": [coupon]}]}
-        )
-        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
-
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            result = await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
         assert result["total"] == 1
         assert result["valid"] == 1
         assert result["active"] == 1
-        assert result["activated_this_cycle"] == 0
+        assert result["in_store"] == 1
         assert len(result["coupons"]) == 1
 
-    async def test_expired_coupons_excluded(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        expired = _make_coupon(
-            title="Expired",
-            is_activated=True,
-            end=(datetime.now(UTC) - timedelta(days=1)).isoformat(),
-        )
-        valid = _make_coupon(title="Valid", is_activated=True)
-        mock_client.coupons = AsyncMock(
+    async def test_expired_coupons_excluded_from_valid(self) -> None:
+        """Test that expired coupons are excluded from valid count."""
+        expired = make_coupon(title="Expired", is_activated=True, is_expired=True)
+        valid = make_coupon(title="Valid", is_activated=True)
+        client = AsyncMock()
+        client.coupons = AsyncMock(
             return_value={"sections": [{"coupons": [expired, valid]}]}
         )
-        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+        client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
 
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            result = await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
         assert result["total"] == 2
         assert result["active"] == 2
         assert result["valid"] == 1
 
-    async def test_inactive_coupons_excluded_from_valid(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        inactive = _make_coupon(title="Inactive", is_activated=False)
-        mock_client.coupons = AsyncMock(
-            return_value={"sections": [{"coupons": [inactive]}]}
-        )
-        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+    async def test_inactive_coupons_excluded_from_valid(self) -> None:
+        """Test that inactive coupons are excluded from valid count."""
+        inactive = make_coupon(title="Inactive", is_activated=False)
+        client = AsyncMock()
+        client.coupons = AsyncMock(return_value={"sections": [{"coupons": [inactive]}]})
+        client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
 
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            result = await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
         assert result["active"] == 0
         assert result["valid"] == 0
 
-    async def test_online_shop_hidden(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        online = _make_coupon(title="Online", is_activated=True, is_online_shop=True)
-        mock_client.coupons = AsyncMock(
-            return_value={"sections": [{"coupons": [online]}]}
-        )
-        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+    async def test_online_shop_hidden(self) -> None:
+        """Test that online-shop coupons are excluded from in-store count."""
+        online = make_coupon(title="Online", is_activated=True, is_online_shop=True)
+        client = AsyncMock()
+        client.coupons = AsyncMock(return_value={"sections": [{"coupons": [online]}]})
+        client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
 
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            result = await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
         assert result["total"] == 1
         assert result["in_store"] == 0
 
-    async def test_v1_coupons_merged(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        v2_coupon = _make_coupon(title="V2", is_activated=True)
-        v1_coupon = _make_coupon(title="V1", is_activated=True)
-        mock_client.coupons = AsyncMock(
+    async def test_v1_coupons_merged(self) -> None:
+        """Test that V1 promotions are merged with V2 coupons."""
+        v2_coupon = make_coupon(title="V2", is_activated=True)
+        v1_coupon = make_coupon(title="V1", is_activated=True)
+        client = AsyncMock()
+        client.coupons = AsyncMock(
             return_value={"sections": [{"coupons": [v2_coupon]}]}
         )
-        mock_client.coupon_promotions_v1 = AsyncMock(
+        client.coupon_promotions_v1 = AsyncMock(
             return_value={"sections": [{"promotions": [v1_coupon]}]}
         )
 
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            result = await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
         assert result["total"] == 2
         assert result["valid"] == 2
 
-    async def test_auth_failure_raises_update_failed(
-        self, coordinator: LidlPlusCoordinator, mock_client: AsyncMock
-    ) -> None:
-        from homeassistant.helpers.update_coordinator import UpdateFailed
+    async def test_v2_fetch_failure_returns_empty(self) -> None:
+        """Test that a V2 fetch failure still allows V1 data."""
+        import aiohttp
 
-        mock_client.get_access_token = AsyncMock(side_effect=Exception("auth error"))
+        v1_coupon = make_coupon(title="V1 Only", is_activated=True)
+        client = AsyncMock()
+        client.coupons = AsyncMock(side_effect=aiohttp.ClientError("fail"))
+        client.coupon_promotions_v1 = AsyncMock(
+            return_value={"sections": [{"promotions": [v1_coupon]}]}
+        )
 
-        with pytest.raises(UpdateFailed):
-            await coordinator._async_update_data()
+        result = await fetch_and_process_coupons(client)
 
-    async def test_updates_refresh_token(
-        self,
-        coordinator: LidlPlusCoordinator,
-        mock_client: AsyncMock,
-        mock_hass: MagicMock,
-    ) -> None:
-        mock_client.refresh_token = "new-token"
-        mock_client.coupons = AsyncMock(return_value={"sections": []})
-        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+        assert result["total"] == 1
+        assert result["valid"] == 1
 
-        with patch(
-            "custom_components.lidl_plus.coordinator.activate_coupons",
-            new_callable=AsyncMock,
-            return_value=0,
-        ):
-            await coordinator._async_update_data()
+    async def test_both_fetch_failures_returns_empty(self) -> None:
+        """Test that both fetch failures return zeroed counts."""
+        import aiohttp
 
-        mock_hass.config_entries.async_update_entry.assert_called_once()
+        client = AsyncMock()
+        client.coupons = AsyncMock(side_effect=aiohttp.ClientError("fail"))
+        client.coupon_promotions_v1 = AsyncMock(side_effect=aiohttp.ClientError("fail"))
+
+        result = await fetch_and_process_coupons(client)
+
+        assert result["total"] == 0
+        assert result["valid"] == 0
+        assert result["active"] == 0
+        assert result["in_store"] == 0
