@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, quote, urlparse
 import requests
 
 sys.path.insert(0, "custom_components/lidl_plus")
-from coupon_helpers import coupon_label, is_expired, should_show
+from coupon_helpers import coupon_label, is_expired, is_special_promotion, should_show
 
 _CLIENT_ID = "LidlPlusNativeClient"
 _AUTH_API = "https://accounts.lidl.com"
@@ -233,7 +233,8 @@ def _print_coupons(data: dict, key: str) -> None:
             if not should_show(coupon):
                 continue
             status = "active" if coupon.get("isActivated") else "inactive"
-            print(f"  [{status}] {coupon_label(coupon)}")
+            tag = " [in-store only]" if is_special_promotion(coupon) else ""
+            print(f"  [{status}{tag}] {coupon_label(coupon)}")
 
 
 def _activate_all(client: LidlPlusSyncClient) -> int:
@@ -243,7 +244,7 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
         coupons = client.coupons()
         for section in coupons.get("sections", []):
             for coupon in section.get("coupons", []):
-                if coupon["isActivated"] or is_expired(coupon):
+                if coupon["isActivated"] or is_expired(coupon) or is_special_promotion(coupon):
                     continue
                 try:
                     client.activate_coupon(coupon["id"])
@@ -258,7 +259,7 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
         coupons_v1 = client.coupon_promotions_v1()
         for section in coupons_v1.get("sections", []):
             for coupon in section.get("promotions", []):
-                if coupon["isActivated"] or is_expired(coupon):
+                if coupon["isActivated"] or is_expired(coupon) or is_special_promotion(coupon):
                     continue
                 try:
                     client.activate_coupon_promotion_v1(coupon["id"])

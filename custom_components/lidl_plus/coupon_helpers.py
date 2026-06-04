@@ -25,6 +25,10 @@ def is_expired(coupon: dict) -> bool:
     return False
 
 
+def is_special_promotion(coupon: dict) -> bool:
+    return bool(coupon.get("specialPromotion")) or coupon.get("isSpecial", False)
+
+
 def should_show(coupon: dict) -> bool:
     return not coupon.get("isOnlineShop") and coupon.get("title") not in _SKIP_TITLES
 
