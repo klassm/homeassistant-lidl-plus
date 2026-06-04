@@ -7,5 +7,5 @@
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/klassm/homeassistant-lidl-plus/issues",
     "version": "0.2.0",
-    "icon": "icons/icon.png"
+    "icon": "brand/icon.png"
 }
