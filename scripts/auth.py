@@ -184,8 +184,12 @@ def cmd_login(args: argparse.Namespace) -> None:
 
     auth_url, code_verifier, redirect_uri = _build_auth_url(args.country, args.language)
 
-    _LOGGER.info("Opening browser for Lidl Plus login...")
-    _LOGGER.info("Log in with your credentials and complete 2FA if prompted.")
+    print("Opening browser for Lidl Plus login...")
+    print("Log in with your credentials and complete 2FA if prompted.")
+    print(
+        "If the CLI doesn't detect the callback automatically, check the"
+        " browser console for the redirect URL.\n"
+    )
 
     code = ""
     with sync_playwright() as p:
@@ -201,26 +205,41 @@ def cmd_login(args: argparse.Namespace) -> None:
         page.on("request", on_request)
         page.goto(auth_url)
 
-        _LOGGER.info("Waiting for login to complete...")
+        print("Waiting for login to complete...")
+        wait_count = 0
         while not code:
-            page.wait_for_timeout(_WAIT_MS)
+            page.wait_for_timeout(2000)
+            wait_count += 1
+            if wait_count >= 90:  # ~3 minutes
+                break
             try:
                 cb = page.locator("input[type='checkbox']").first
-                if cb.is_visible(timeout=_CHECKBOX_TIMEOUT_MS):
+                if cb.is_visible(timeout=1000):
                     cb.click()
-                    page.locator("button[type='submit']").first.click(
-                        timeout=_CHECKBOX_TIMEOUT_MS
-                    )
-            except PlaywrightError:
+                    page.locator("button[type='submit']").first.click(timeout=1000)
+            except Exception:
                 pass
 
-        browser.close()
+        if browser.is_connected():
+            browser.close()
+
+    if not code:
+        fallback_url = input(
+            "Could not auto-capture the callback URL.\n"
+            "Paste the full URL from the browser console "
+            "(com.lidlplus.app://callback?code=...): "
+        ).strip()
+        code = _extract_code(fallback_url)
 
     if not code:
         _LOGGER.error("Failed to capture authorization code.")
         sys.exit(1)
 
-    _LOGGER.info("Exchanging authorization code for tokens...")
+    if not code:
+        print("Failed to capture authorization code.")
+        sys.exit(1)
+
+    print("Exchanging authorization code for tokens...")
     resp = requests.post(
         f"{_AUTH_API}/connect/token",
         data={
