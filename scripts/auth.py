@@ -14,10 +14,9 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
-import logging
 import secrets
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, quote, urlparse
 
 import requests
@@ -25,16 +24,10 @@ import requests
 sys.path.insert(0, "custom_components/lidl_plus")
 from coupon_helpers import coupon_label, is_expired, is_special_promotion, should_show
 
-_LOGGER = logging.getLogger(__name__)
-
 _CLIENT_ID = "LidlPlusNativeClient"
 _AUTH_API = "https://accounts.lidl.com"
 _COUPONS_API = "https://coupons.lidlplus.com/app/api"
-_TIMEOUT_SECONDS = 30
-_WAIT_MS = 2000
-_CHECKBOX_TIMEOUT_MS = 1000
-_HTTP_CONFLICT = 409
-_HTTP_BAD_REQUEST = 400
+_TIMEOUT = 30
 
 _DEFAULT_HEADERS = {
     "App-Version": "14.21.2",
@@ -48,7 +41,6 @@ _DEFAULT_HEADERS = {
 
 
 def _auth_secret() -> str:
-    """Return the Base64-encoded client secret."""
     return base64.b64encode(b"LidlPlusNativeClient:secret").decode()
 
 
@@ -56,7 +48,6 @@ class LidlPlusSyncClient:
     """Requests-based client matching the HA integration's api.py exactly."""
 
     def __init__(self, refresh_token: str, country: str, language: str) -> None:
-        """Initialize the sync API client."""
         self.refresh_token = refresh_token
         self._country = country
         self._language = language
@@ -64,7 +55,6 @@ class LidlPlusSyncClient:
         self._expires: datetime | None = None
 
     def _api_headers(self) -> dict:
-        """Return API request headers with the current access token."""
         return {
             **_DEFAULT_HEADERS,
             "Authorization": f"Bearer {self._token}",
@@ -73,7 +63,6 @@ class LidlPlusSyncClient:
         }
 
     def get_access_token(self) -> str:
-        """Get a valid access token, refreshing if necessary."""
         if self._expires and datetime.now(UTC) < self._expires and self._token:
             return self._token
         resp = requests.post(
@@ -83,57 +72,50 @@ class LidlPlusSyncClient:
                 "Authorization": f"Basic {_auth_secret()}",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT,
         )
         data = resp.json()
         if "error" in data:
-            msg = f"Auth failed: {data['error']}"
-            raise RuntimeError(msg)
+            raise RuntimeError(f"Auth failed: {data['error']}")
         self._token = data["access_token"]
         self.refresh_token = data["refresh_token"]
-        from datetime import timedelta
-
         self._expires = datetime.now(UTC) + timedelta(seconds=data["expires_in"])
         return self._token
 
     def coupons(self) -> dict:
-        """Fetch V2 coupons from the API."""
         self.get_access_token()
         return requests.get(
             f"{_COUPONS_API}/v2/promotionsList",
             headers=self._api_headers(),
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT,
         ).json()
 
     def coupon_promotions_v1(self) -> dict:
-        """Fetch V1 coupon promotions from the API."""
         self.get_access_token()
         return requests.get(
             f"{_COUPONS_API}/v1/promotionslist",
             headers=self._api_headers(),
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT,
         ).json()
 
     def activate_coupon(self, coupon_id: str) -> None:
-        """Activate a V2 coupon by ID."""
         self.get_access_token()
         resp = requests.post(
             f"{_COUPONS_API}/v1/promotions/{coupon_id}/activation",
             headers=self._api_headers(),
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT,
         )
-        if resp.status_code != _HTTP_CONFLICT and resp.status_code > _HTTP_BAD_REQUEST:
+        if resp.status_code != 409 and resp.status_code > 400:
             resp.raise_for_status()
 
     def activate_coupon_promotion_v1(self, promotion_id: str) -> None:
-        """Activate a V1 coupon promotion by ID."""
         self.get_access_token()
         resp = requests.post(
             f"{_COUPONS_API}/v1/promotions/{promotion_id}/activation",
             headers=self._api_headers(),
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT,
         )
-        if resp.status_code != _HTTP_CONFLICT and resp.status_code > _HTTP_BAD_REQUEST:
+        if resp.status_code != 409 and resp.status_code > 400:
             resp.raise_for_status()
 
 
@@ -141,7 +123,6 @@ class LidlPlusSyncClient:
 
 
 def _generate_pkce() -> tuple[str, str]:
-    """Generate PKCE code verifier and challenge pair."""
     code_verifier = secrets.token_urlsafe(32)
     digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
     code_challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
@@ -149,7 +130,6 @@ def _generate_pkce() -> tuple[str, str]:
 
 
 def _build_auth_url(country: str, language: str) -> tuple[str, str, str]:
-    """Build the OAuth authorization URL with PKCE parameters."""
     code_verifier, code_challenge = _generate_pkce()
     redirect_uri = "com.lidlplus.app://callback"
     state = secrets.token_urlsafe(32)
@@ -172,14 +152,11 @@ def _build_auth_url(country: str, language: str) -> tuple[str, str, str]:
 
 
 def _extract_code(url: str) -> str:
-    """Extract the authorization code from a callback URL."""
     params = parse_qs(urlparse(url).query)
     return params.get("code", [None])[0] or ""
 
 
 def cmd_login(args: argparse.Namespace) -> None:
-    """Obtain a refresh token via browser-based login."""
-    from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import sync_playwright
 
     auth_url, code_verifier, redirect_uri = _build_auth_url(args.country, args.language)
@@ -232,10 +209,6 @@ def cmd_login(args: argparse.Namespace) -> None:
         code = _extract_code(fallback_url)
 
     if not code:
-        _LOGGER.error("Failed to capture authorization code.")
-        sys.exit(1)
-
-    if not code:
         print("Failed to capture authorization code.")
         sys.exit(1)
 
@@ -253,34 +226,32 @@ def cmd_login(args: argparse.Namespace) -> None:
             "Authorization": f"Basic {_auth_secret()}",
             "Content-Type": "application/x-www-form-urlencoded",
         },
-        timeout=_TIMEOUT_SECONDS,
+        timeout=_TIMEOUT,
     )
     tokens = resp.json()
     if "error" in tokens:
-        _LOGGER.error("Token exchange failed: %s", tokens["error"])
+        print(f"Token exchange failed: {tokens['error']}")
         sys.exit(1)
 
-    _LOGGER.info("Login successful!")
-    _LOGGER.info("Refresh token (save for Home Assistant):")
-    _LOGGER.info(tokens["refresh_token"])
+    print("\nLogin successful!")
+    print("Refresh token (save for Home Assistant):")
+    print(tokens["refresh_token"])
 
 
 # --- Shared coupon operations (using coupon_helpers) ---
 
 
 def _print_coupons(data: dict, key: str) -> None:
-    """Print coupons from a specific data section."""
     for section in data.get("sections", []):
         for coupon in section.get(key, []):
             if not should_show(coupon):
                 continue
             status = "active" if coupon.get("isActivated") else "inactive"
             tag = " [in-store only]" if is_special_promotion(coupon) else ""
-            _LOGGER.info("  [%s%s] %s", status, tag, coupon_label(coupon))
+            print(f"  [{status}{tag}] {coupon_label(coupon)}")
 
 
 def _activate_all(client: LidlPlusSyncClient) -> int:
-    """Activate all available coupons and return the count activated."""
     activated = 0
 
     try:
@@ -295,12 +266,12 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
                     continue
                 try:
                     client.activate_coupon(coupon["id"])
-                    _LOGGER.info("  [activated] %s", coupon_label(coupon))
+                    print(f"  [activated] {coupon_label(coupon)}")
                     activated += 1
-                except requests.RequestException as e:
-                    _LOGGER.warning("  [failed] %s: %s", coupon_label(coupon), e)
-    except requests.RequestException:
-        _LOGGER.exception("  V2 coupons error")
+                except Exception as e:
+                    print(f"  [failed] {coupon_label(coupon)}: {e}")
+    except Exception as e:
+        print(f"  V2 coupons error: {e}")
 
     try:
         coupons_v1 = client.coupon_promotions_v1()
@@ -314,55 +285,52 @@ def _activate_all(client: LidlPlusSyncClient) -> int:
                     continue
                 try:
                     client.activate_coupon_promotion_v1(coupon["id"])
-                    _LOGGER.info("  [activated] %s", coupon_label(coupon))
+                    print(f"  [activated] {coupon_label(coupon)}")
                     activated += 1
-                except requests.RequestException as e:
-                    _LOGGER.warning("  [failed] %s: %s", coupon_label(coupon), e)
-    except requests.RequestException:
-        _LOGGER.exception("  V1 coupons error")
+                except Exception as e:
+                    print(f"  [failed] {coupon_label(coupon)}: {e}")
+    except Exception as e:
+        print(f"  V1 coupons error: {e}")
 
     return activated
 
 
 def cmd_auth(args: argparse.Namespace) -> None:
-    """Test authentication with a refresh token."""
     client = LidlPlusSyncClient(args.refresh_token, args.country, args.language)
     try:
         token = client.get_access_token()
-        _LOGGER.info("Authentication successful!")
-        _LOGGER.info("  Access token: %s...", token[:20])
-        _LOGGER.info("Updated refresh token (save for Home Assistant):")
-        _LOGGER.info(client.refresh_token)
-    except RuntimeError:
-        _LOGGER.exception("Authentication failed")
+        print("Authentication successful!")
+        print(f"  Access token: {token[:20]}...")
+        print("\nUpdated refresh token (save for Home Assistant):")
+        print(client.refresh_token)
+    except RuntimeError as e:
+        print(f"Authentication failed: {e}")
         sys.exit(1)
 
 
 def cmd_coupon_list(args: argparse.Namespace) -> None:
-    """List all available coupons."""
     client = LidlPlusSyncClient(args.refresh_token, args.country, args.language)
     try:
         client.get_access_token()
-        _LOGGER.info("=== Coupons (V2) ===")
+        print("=== Coupons (V2) ===")
         _print_coupons(client.coupons(), key="coupons")
-        _LOGGER.info("=== Coupons (V1) ===")
+        print("\n=== Coupons (V1) ===")
         _print_coupons(client.coupon_promotions_v1(), key="promotions")
-    except requests.RequestException:
-        _LOGGER.exception("Error listing coupons")
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
 
 def cmd_coupon_activate(args: argparse.Namespace) -> None:
-    """Activate all available coupons."""
     client = LidlPlusSyncClient(args.refresh_token, args.country, args.language)
     try:
         client.get_access_token()
-        _LOGGER.info("Activating coupons...")
+        print("Activating coupons...")
         activated = _activate_all(client)
-        _LOGGER.info("Total activated: %d", activated)
-        _LOGGER.info("Updated refresh token: %s", client.refresh_token)
-    except requests.RequestException:
-        _LOGGER.exception("Error listing coupons")
+        print(f"\nTotal activated: {activated}")
+        print(f"Updated refresh token: {client.refresh_token}")
+    except Exception as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
 
@@ -370,13 +338,11 @@ def cmd_coupon_activate(args: argparse.Namespace) -> None:
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
-    """Add common country/language arguments to a parser."""
     p.add_argument("--country", default="DE", help="Country code (default: DE)")
     p.add_argument("--language", default="de", help="Language code (default: de)")
 
 
 def main() -> None:
-    """Parse arguments and dispatch to the appropriate subcommand."""
     parser = argparse.ArgumentParser(
         description="Lidl Plus CLI - authenticate and manage coupons"
     )
