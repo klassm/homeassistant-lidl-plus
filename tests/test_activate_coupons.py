@@ -55,15 +55,28 @@ class TestActivateCoupons:
         assert result == 0
         mock_client.activate_coupon.assert_not_awaited()
 
-    async def test_skips_special_promotions(self, mock_client: AsyncMock) -> None:
-        """Test that special (in-store only) promotions are skipped."""
-        c1 = make_coupon(coupon_id="c1", is_special=True)
+    async def test_skips_meal_deal_specials(self, mock_client: AsyncMock) -> None:
+        """Test that Meal Deal specials are skipped."""
+        c1 = make_coupon(coupon_id="c1", special_tag="Meal Deal")
         mock_client.coupons = AsyncMock(return_value={"sections": [{"coupons": [c1]}]})
         mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
 
         result = await activate_coupons(mock_client)
         assert result == 0
         mock_client.activate_coupon.assert_not_awaited()
+
+    async def test_activates_fur_dich_coupons(self, mock_client: AsyncMock) -> None:
+        """Test that 'Für Dich' personal coupons are activated."""
+        c1 = make_coupon(
+            coupon_id="c1", title="Buttercroissant", is_activated=False, special_tag="Für Dich"
+        )
+        mock_client.coupons = AsyncMock(return_value={"sections": [{"coupons": [c1]}]})
+        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+        mock_client.activate_coupon = AsyncMock()
+
+        result = await activate_coupons(mock_client)
+        assert result == 1
+        mock_client.activate_coupon.assert_awaited_once_with("c1")
 
     async def test_activates_v1_promotions(self, mock_client: AsyncMock) -> None:
         """Test that V1 promotions are activated correctly."""

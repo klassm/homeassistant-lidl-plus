@@ -75,29 +75,35 @@ class TestIsExpired:
 class TestIsSpecialPromotion:
     """Tests for is_special_promotion()."""
 
-    def test_special_promotion_true(self) -> None:
-        """Test that specialPromotion=true is detected."""
-        assert is_special_promotion({"specialPromotion": True})
+    def test_meal_deal_is_special(self) -> None:
+        """Test that Meal Deal tagged coupons are in-store-only specials."""
+        assert is_special_promotion({"specialPromotion": {"tag": "Meal Deal"}})
 
-    def test_special_promotion_false(self) -> None:
-        """Test that specialPromotion=false is not special."""
-        assert not is_special_promotion({"specialPromotion": False})
+    def test_fur_dich_is_not_special(self) -> None:
+        """Test that 'Für Dich' personal coupons are NOT in-store-only."""
+        assert not is_special_promotion({"specialPromotion": {"tag": "Für Dich"}})
 
-    def test_is_special_true(self) -> None:
-        """Test that isSpecial=true is detected."""
-        assert is_special_promotion({"isSpecial": True})
+    def test_empty_special_promotion(self) -> None:
+        """Test that empty specialPromotion dict is not special."""
+        assert not is_special_promotion({"specialPromotion": {}})
 
-    def test_is_special_false(self) -> None:
-        """Test that isSpecial=false is not special."""
-        assert not is_special_promotion({"isSpecial": False})
-
-    def test_neither(self) -> None:
-        """Test that a coupon with neither flag is not special."""
+    def test_no_special_promotion_key(self) -> None:
+        """Test that missing specialPromotion is not special."""
         assert not is_special_promotion({})
 
-    def test_both(self) -> None:
-        """Test that having both flags is detected as special."""
-        assert is_special_promotion({"specialPromotion": True, "isSpecial": True})
+    def test_special_promotion_without_tag(self) -> None:
+        """Test that specialPromotion without tag is not special."""
+        assert not is_special_promotion({"specialPromotion": {"other": "value"}})
+
+    def test_is_special_flag_ignored(self) -> None:
+        """Test that isSpecial=true alone is not treated as in-store-only."""
+        assert not is_special_promotion({"isSpecial": True})
+
+    def test_is_special_true_with_meal_deal_tag(self) -> None:
+        """Test that isSpecial=true with Meal Deal tag is in-store-only."""
+        assert is_special_promotion(
+            {"specialPromotion": {"tag": "Meal Deal"}, "isSpecial": True}
+        )
 
 
 class TestShouldShow:

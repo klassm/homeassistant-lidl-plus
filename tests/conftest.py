@@ -20,7 +20,7 @@ class CouponSpec:
     title: str = "Test Coupon"
     is_activated: bool = True
     is_expired: bool = False
-    is_special: bool = False
+    special_tag: str | None = None
     is_online_shop: bool = False
     image: str = ""
     coupon_id: str = "coupon-1"
@@ -72,12 +72,13 @@ def make_coupon(spec: CouponSpec | None = None, **overrides: object) -> dict:
         if not spec.is_expired
         else (now - timedelta(days=1)).isoformat()
     )
+    special_promotion = {"tag": spec.special_tag} if spec.special_tag else {}
     return {
         "id": spec.coupon_id,
         "title": spec.title,
         "isActivated": spec.is_activated,
-        "specialPromotion": spec.is_special,
-        "isSpecial": spec.is_special,
+        "specialPromotion": special_promotion,
+        "isSpecial": spec.special_tag is not None,
         "isOnlineShop": spec.is_online_shop,
         "endValidityDate": end,
         "image": spec.image,
