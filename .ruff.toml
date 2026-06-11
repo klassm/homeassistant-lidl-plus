@@ -31,4 +31,13 @@ max-complexity = 25
     "S105",    # Hardcoded passwords fine in test fixtures
     "S106",    # Hardcoded password args fine in test fixtures
 ]
+"scripts/**" = [
+    "D",       # Docstrings not required in CLI scripts
+    "T201",    # print() is expected in CLI scripts
+    "TRY003",  # Long exception messages are fine in CLI scripts
+    "EM102",   # f-string exceptions are fine in CLI scripts
+    "PLR2004", # Magic values in comparisons are fine in CLI scripts
+    "BLE001",  # Catching bare Exception is fine in CLI scripts
+    "S110",    # try-except-pass is fine in CLI scripts
+]
 
