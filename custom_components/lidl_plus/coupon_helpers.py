@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-_SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung"}
+_SKIP_TITLES = {"Aktionsrabatt", "Wiedereröffnung", "Neueröffnung"}
 
 
 def is_expired(coupon: dict) -> bool:

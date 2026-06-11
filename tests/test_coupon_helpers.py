@@ -125,6 +125,10 @@ class TestShouldShow:
         """Test that 'Wiedereröffnung' is hidden."""
         assert not should_show({"title": "Wiedereröffnung"})
 
+    def test_skip_title_neueroeffnung(self) -> None:
+        """Test that 'Neueröffnung' is hidden."""
+        assert not should_show({"title": "Neueröffnung"})
+
     def test_normal_title_shown(self) -> None:
         """Test that a regular title is shown."""
         assert should_show({"title": "20% Off Fruit"})
