@@ -24,9 +24,14 @@ def is_expired(coupon: dict) -> bool:
     return bool(start and datetime.fromisoformat(start) > now)
 
 
+_INSTORE_ONLY_TAGS = {"Meal Deal"}
+
+
 def is_special_promotion(coupon: dict) -> bool:
-    """Check if a coupon is a special (in-store only) promotion."""
-    return bool(coupon.get("specialPromotion")) or coupon.get("isSpecial", False)
+    """Check if a coupon is an in-store-only special (e.g. Meal Deal)."""
+    special = coupon.get("specialPromotion", {})
+    tag = special.get("tag", "") if isinstance(special, dict) else ""
+    return tag in _INSTORE_ONLY_TAGS
 
 
 def should_show(coupon: dict) -> bool:
