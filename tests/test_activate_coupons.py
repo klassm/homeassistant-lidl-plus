@@ -68,7 +68,10 @@ class TestActivateCoupons:
     async def test_activates_fur_dich_coupons(self, mock_client: AsyncMock) -> None:
         """Test that 'Für Dich' personal coupons are activated."""
         c1 = make_coupon(
-            coupon_id="c1", title="Buttercroissant", is_activated=False, special_tag="Für Dich"
+            coupon_id="c1",
+            title="Buttercroissant",
+            is_activated=False,
+            special_tag="Für Dich",
         )
         mock_client.coupons = AsyncMock(return_value={"sections": [{"coupons": [c1]}]})
         mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
