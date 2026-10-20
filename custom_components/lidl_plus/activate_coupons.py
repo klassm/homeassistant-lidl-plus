@@ -25,10 +25,16 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
                 ):
                     continue
                 LOGGER.info("Activating coupon: %s", coupon_label(coupon))
-                await client.activate_coupon(coupon["id"])
+                try:
+                    await client.activate_coupon(coupon["id"])
+                except (aiohttp.ClientError, TimeoutError) as err:
+                    LOGGER.warning(
+                        "Failed to activate coupon %s: %s", coupon_label(coupon), err
+                    )
+                    continue
                 activated += 1
     except (aiohttp.ClientError, TimeoutError) as err:
-        LOGGER.warning("Failed to fetch/activate V2 coupons: %s", err)
+        LOGGER.warning("Failed to fetch V2 coupons: %s", err)
 
     try:
         coupons_v1 = await client.coupon_promotions_v1()
@@ -41,10 +47,18 @@ async def activate_coupons(client: LidlPlusApiClient) -> int:
                 ):
                     continue
                 LOGGER.info("Activating coupon v1: %s", coupon_label(coupon))
-                await client.activate_coupon_promotion_v1(coupon["id"])
+                try:
+                    await client.activate_coupon_promotion_v1(coupon["id"])
+                except (aiohttp.ClientError, TimeoutError) as err:
+                    LOGGER.warning(
+                        "Failed to activate coupon v1 %s: %s",
+                        coupon_label(coupon),
+                        err,
+                    )
+                    continue
                 activated += 1
     except (aiohttp.ClientError, TimeoutError) as err:
-        LOGGER.warning("Failed to fetch/activate V1 coupons: %s", err)
+        LOGGER.warning("Failed to fetch V1 coupons: %s", err)
 
     LOGGER.info("Activated %d coupons", activated)
     return activated

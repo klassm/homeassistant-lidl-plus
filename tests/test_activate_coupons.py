@@ -94,6 +94,33 @@ class TestActivateCoupons:
         assert result == 1
         mock_client.activate_coupon_promotion_v1.assert_awaited_once_with("p1")
 
+    async def test_continues_after_single_activation_error(
+        self, mock_client: AsyncMock
+    ) -> None:
+        """Test that one failing activation does not abort the remaining ones."""
+        from unittest.mock import MagicMock
+
+        import aiohttp
+
+        c1 = make_coupon(coupon_id="c1", title="Bad", is_activated=False)
+        c2 = make_coupon(coupon_id="c2", title="Good", is_activated=False)
+        mock_client.coupons = AsyncMock(
+            return_value={"sections": [{"coupons": [c1, c2]}]}
+        )
+        mock_client.coupon_promotions_v1 = AsyncMock(return_value={"sections": []})
+        request_info = MagicMock()
+        request_info.real_url = "https://example.test"
+        mock_client.activate_coupon = AsyncMock(
+            side_effect=[
+                aiohttp.ClientResponseError(request_info, (), status=428),
+                None,
+            ]
+        )
+
+        result = await activate_coupons(mock_client)
+        assert result == 1
+        assert mock_client.activate_coupon.await_count == 2
+
     async def test_mixed_v2_and_v1(self, mock_client: AsyncMock) -> None:
         """Test that both V2 coupons and V1 promotions are activated."""
         c1 = make_coupon(coupon_id="c1", title="V2", is_activated=False)
